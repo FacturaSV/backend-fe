@@ -19,7 +19,7 @@ services:
       - "traefik.http.routers.backend-options.entrypoints=websecure"
     restart: always
     networks:
-      - internal_network
+      -facturasv
     # ports:
     #   - "3000:3000"
     env_file:
@@ -29,5 +29,6 @@ services:
     #   - backend-node-modules:/app/node_modules
 
 networks:
-  internal_network:
-    driver: bridge
+  facturasv:
+    external: true
+
