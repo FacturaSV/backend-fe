@@ -17,6 +17,7 @@ services:
 
       - "traefik.http.routers.backend-options.rule=Host(`api.facturasv.online`) && Method(`OPTIONS`)"
       - "traefik.http.routers.backend-options.entrypoints=websecure"
+      - "traefik.http.services.backend.loadbalancer.server.port=3000"
     restart: always
     networks:
       - FacturaSvNetwork
