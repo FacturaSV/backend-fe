@@ -1,0 +1,623 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"] // Puedes quitar "multiSchema" si no lo necesitas
+}
+
+datasource db {
+  provider             = "postgresql"
+  url                  = env("DATABASE_URL")
+  schemas              = ["facturalink"]
+  relationMode = "foreignKeys"
+}
+
+enum EstadoRegistro {
+  ACTIVO
+  INACTIVO
+  ELIMINADO
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USUARIO
+// ─────────────────────────────────────────────────────────────────────────────
+model User {
+  id        Int            @id @default(autoincrement())
+  email     String         @unique
+  username  String?
+  nombre    String?
+  apellidos String?
+  empresaId Int?
+  estadoRt  EstadoRegistro @default(ACTIVO) // Enum en vez de Boolean
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Relaciones inversas para saber cuáles registros creó/actualizó
+  createdSucursales Sucursal[] @relation("SucursalCreatedBy")
+  updatedSucursales Sucursal[] @relation("SucursalUpdatedBy")
+  deletedSucursales Sucursal[] @relation("SucursalDeletedBy")
+
+  createdCategorias Categoria[] @relation("CategoriaCreatedBy")
+  updatedCategorias Categoria[] @relation("CategoriaUpdatedBy")
+  deletedCategorias Categoria[] @relation("CategoriaDeletedBy")
+
+  createdProductos Producto[] @relation("ProductoCreatedBy")
+  updatedProductos Producto[] @relation("ProductoUpdatedBy")
+  deletedProductos Producto[] @relation("ProductoDeletedBy")
+
+  createdProductoSucursal ProductoSucursal[] @relation("ProductoSucursalCreatedBy")
+  updatedProductoSucursal ProductoSucursal[] @relation("ProductoSucursalUpdatedBy")
+  deletedProductoSucursal ProductoSucursal[] @relation("ProductoSucursalDeletedBy")
+
+  createdHistorialPrecios HistorialPrecio[] @relation("HistorialPrecioCreatedBy")
+  updatedHistorialPrecios HistorialPrecio[] @relation("HistorialPrecioUpdatedBy")
+  deletedHistorialPrecios HistorialPrecio[] @relation("HistorialPrecioDeletedBy")
+
+  createdDescuentos Descuento[] @relation("DescuentoCreatedBy")
+  updatedDescuentos Descuento[] @relation("DescuentoUpdatedBy")
+  deletedDescuentos Descuento[] @relation("DescuentoDeletedBy")
+
+  createdVentas Venta[] @relation("VentaCreatedBy")
+  updatedVentas Venta[] @relation("VentaUpdatedBy")
+  deletedVentas Venta[] @relation("VentaDeletedBy")
+
+  createdDetalleVentas DetalleVenta[] @relation("DetalleVentaCreatedBy")
+  updatedDetalleVentas DetalleVenta[] @relation("DetalleVentaUpdatedBy")
+  deletedDetalleVentas DetalleVenta[] @relation("DetalleVentaDeletedBy")
+
+  // Relaciones inversas para ProductoCategoria
+  createdProductoCategorias ProductoCategoria[] @relation("ProductoCategoriaCreatedBy")
+  updatedProductoCategorias ProductoCategoria[] @relation("ProductoCategoriaUpdatedBy")
+  deletedProductoCategorias ProductoCategoria[] @relation("ProductoCategoriaDeletedBy")
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUCURSAL
+// ─────────────────────────────────────────────────────────────────────────────
+model Sucursal {
+  id                  Int            @id @default(autoincrement())
+  nombre              String
+  direccion           String?
+  telefono            String?
+  email               String?
+  codPuntoVenta       String?
+  codPuntoVentaMH     String?
+  codigoDte           String?        @unique
+  codEstable          String?
+  codEstableMH        String?
+  tipoEstablecimiento String?
+  municipioId         Int?
+  departamentoId      Int?
+  estadoRt            EstadoRegistro @default(ACTIVO)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  // Control de quién creó y actualizó
+  createdBy           Int?
+  createdByUser       User?          @relation("SucursalCreatedBy", fields: [createdBy], references: [id])
+  updatedBy           Int?
+  updatedByUser       User?          @relation("SucursalUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy           Int?
+  deletedByUser       User?          @relation("SucursalDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones
+  empresaId         Int?
+  empresa           Empresa?           @relation(fields: [empresaId], references: [id])
+  municipio         Catalogo?          @relation("MunicipioSucursal", fields: [municipioId], references: [id])
+  departamento      Catalogo?          @relation("DepartamentoSucursal", fields: [departamentoId], references: [id])
+  productosSucursal ProductoSucursal[]
+  ventas            Venta[]
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CATEGORIA (con subcategorías)
+// ─────────────────────────────────────────────────────────────────────────────
+model Categoria {
+  id          Int            @id @default(autoincrement())
+  nombre      String
+  descripcion String?
+  nivel       Int            @default(1)
+  estadoRt    EstadoRegistro @default(ACTIVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("CategoriaCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("CategoriaUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("CategoriaDeletedBy", fields: [deletedBy], references: [id])
+
+  // Autorreferencia (subcategorías)
+  categoriaPadreId Int?
+  categoriaPadre   Categoria?  @relation("Subcats", fields: [categoriaPadreId], references: [id])
+  subcategorias    Categoria[] @relation("Subcats")
+
+  // Muchas categorías para cada producto (tabla pivote a continuación)
+  productos ProductoCategoria[]
+
+  // Relación inversa con Descuento
+  descuentos Descuento[]
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTO
+// ─────────────────────────────────────────────────────────────────────────────
+model Producto {
+  id           Int            @id @default(autoincrement())
+  codigo       String
+  nombre       String
+  descripcion  String?
+  unidadMedida String?
+  estadoRt     EstadoRegistro @default(ACTIVO)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("ProductoCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("ProductoUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("ProductoDeletedBy", fields: [deletedBy], references: [id])
+
+  // Muchas categorías para cada producto
+  categorias ProductoCategoria[]
+
+  // Otras relaciones
+  historialPrecios  HistorialPrecio[]
+  productosSucursal ProductoSucursal[]
+  detalleVentas     DetalleVenta[]
+  descuentos        Descuento[]
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTO-SUCURSAL (control de stock)
+// ─────────────────────────────────────────────────────────────────────────────
+model ProductoSucursal {
+  id          Int            @id @default(autoincrement())
+  productoId  Int
+  sucursalId  Int
+  stockActual Int            @default(0)
+  stockMinimo Int            @default(0)
+  stockMaximo Int            @default(0)
+  estadoRt    EstadoRegistro @default(ACTIVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("ProductoSucursalCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("ProductoSucursalUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("ProductoSucursalDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones
+  producto Producto @relation(fields: [productoId], references: [id])
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORIAL DE PRECIOS
+// ─────────────────────────────────────────────────────────────────────────────
+model HistorialPrecio {
+  id          Int            @id @default(autoincrement())
+  productoId  Int
+  precio      Decimal        @default(0.00) @db.Decimal(10, 2)
+  fechaInicio DateTime       @default(now())
+  fechaFin    DateTime?
+  estadoRt    EstadoRegistro @default(ACTIVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("HistorialPrecioCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("HistorialPrecioUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("HistorialPrecioDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DESCUENTOS / PROMOCIONES
+// ─────────────────────────────────────────────────────────────────────────────
+model Descuento {
+  id               Int            @id @default(autoincrement())
+  nombre           String
+  tipoDescuento    String
+  valorDescuento   Decimal        @default(0.00) @db.Decimal(10, 2)
+  fechaInicio      DateTime       @default(now())
+  fechaFin         DateTime?
+  aplicaATodaVenta Boolean        @default(false)
+  estadoRt         EstadoRegistro @default(ACTIVO)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("DescuentoCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("DescuentoUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("DescuentoDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones con categoría y/o producto (1 a 1 o muchos a 1)
+  categoriaId Int?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+
+  productoId Int?
+  producto   Producto? @relation(fields: [productoId], references: [id])
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VENTAS (ENCABEZADO)
+// ─────────────────────────────────────────────────────────────────────────────
+model Venta {
+  id                Int            @id @default(autoincrement())
+  sucursalId        Int
+  fechaVenta        DateTime       @default(now())
+  clienteId         Int?
+  totalBruto        Decimal        @default(0.00) @db.Decimal(10, 2)
+  descuentoAplicado Decimal        @default(0.00) @db.Decimal(10, 2)
+  impuestos         Decimal        @default(0.00) @db.Decimal(10, 2)
+  totalNeto         Decimal        @default(0.00) @db.Decimal(10, 2)
+  estadoRt          EstadoRegistro @default(ACTIVO)
+  estado            String         @default("PENDIENTE")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("VentaCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("VentaUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("VentaDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones
+  sucursal      Sucursal       @relation(fields: [sucursalId], references: [id])
+  detalleVentas DetalleVenta[]
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DETALLE DE VENTA
+// ─────────────────────────────────────────────────────────────────────────────
+model DetalleVenta {
+  id                Int            @id @default(autoincrement())
+  ventaId           Int
+  productoId        Int
+  cantidad          Int            @default(1)
+  precioUnitario    Decimal        @default(0.00) @db.Decimal(10, 2)
+  descuentoUnitario Decimal        @default(0.00) @db.Decimal(10, 2)
+  subtotal          Decimal        @default(0.00) @db.Decimal(10, 2)
+  estadoRt          EstadoRegistro @default(ACTIVO)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("DetalleVentaCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("DetalleVentaUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("DetalleVentaDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones
+  venta    Venta    @relation(fields: [ventaId], references: [id])
+  producto Producto @relation(fields: [productoId], references: [id])
+
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTO-CATEGORIA (tabla pivote para muchos-a-muchos)
+// ─────────────────────────────────────────────────────────────────────────────
+model ProductoCategoria {
+  id          Int            @id @default(autoincrement())
+  productoId  Int
+  categoriaId Int
+  estadoRt    EstadoRegistro @default(ACTIVO)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Control de quién creó y actualizó
+  createdBy     Int?
+  createdByUser User? @relation("ProductoCategoriaCreatedBy", fields: [createdBy], references: [id])
+  updatedBy     Int?
+  updatedByUser User? @relation("ProductoCategoriaUpdatedBy", fields: [updatedBy], references: [id])
+  deletedBy     Int?
+  deletedByUser User? @relation("ProductoCategoriaDeletedBy", fields: [deletedBy], references: [id])
+
+  // Relaciones
+  producto  Producto  @relation(fields: [productoId], references: [id])
+  categoria Categoria @relation(fields: [categoriaId], references: [id])
+
+  @@schema("facturalink")
+}
+
+enum AccionHistorial {
+  CREATE
+  UPDATE
+  DELETE
+
+  @@schema("facturalink")
+}
+
+model HistorialCambios {
+  id         Int             @id @default(autoincrement())
+  registroId Int?
+  tabla      String
+  accion     AccionHistorial
+  usuario    Int?
+  fecha      DateTime        @default(now())
+  datos      Json
+
+  @@schema("facturalink")
+}
+
+// EMPRESA
+// ─────────────────────────────────────────────────────────────────────────────
+model Empresa {
+  id                    Int                         @id @default(autoincrement())
+  nombre                String
+  logo                  String?
+  direccion             String?
+  nit                   String?
+  nrc                   String?
+  telefono              String?
+  correo                String?
+  tipoDocumento         String?
+  keycloakGroupId       String?
+  facturasPermitidas    Int?                        @default(0)
+  facturasUtilizadas    Int?                        @default(0)
+  userAdminCant         Int?
+  userDedicadosCant     Int?
+  createdAt             DateTime?                   @default(now())
+  updatedAt             DateTime?                   @updatedAt
+  estadoRt              EstadoRegistro              @default(ACTIVO) // Nuevo estado agregado
+  actividadesEconomicas EmpresaActividadEconomica[]
+  credenciales          Credenciales[]
+  documentosDte         EmpresaDocumentosDte[]
+  sucursales            Sucursal[]
+  clientesRegistrados   EmpresaClientes[]
+
+  @@schema("facturalink")
+}
+
+model EmpresaClientes {
+  empresaId Int
+  clienteId Int
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+  cliente Cliente @relation(fields: [clienteId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([empresaId, clienteId])
+  @@schema("facturalink")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENTE
+// ─────────────────────────────────────────────────────────────────────────────
+model Cliente {
+  id              Int            @id @default(autoincrement())
+  nombre          String
+  email           String         @unique
+  telefono        String?
+  tipoDocumento   String?
+  numDocumento    String?
+  direccion       String?
+  nrc             String?
+  keycloakGroupId String?
+  municipioId     Int?
+  departamentoId  Int?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  estadoRt        EstadoRegistro @default(ACTIVO)
+
+  municipio                 Catalogo?                   @relation("MunicipioCliente", fields: [municipioId], references: [id])
+  departamento              Catalogo?                   @relation("DepartamentoCliente", fields: [departamentoId], references: [id])
+  ClienteActividadEconomica ClienteActividadEconomica[]
+  empresasRegistradas       EmpresaClientes[]
+
+  @@schema("facturalink")
+}
+
+model ActividadEconomica {
+  id                        Int                          @id @default(autoincrement())
+  codigo                    String
+  valor                     String
+  descripcion               String
+  empresas                  EmpresaActividadEconomica[]
+  catalogos                 CatalogoActividadEconomica[]
+  ClienteActividadEconomica ClienteActividadEconomica[]
+
+  @@schema("facturalink")
+}
+
+model Catalogo {
+  id                    Int                          @id @default(autoincrement())
+  tipoCatalogo          String
+  codigo                String
+  valor                 String
+  descripcion           String?
+  actividadesEconomicas CatalogoActividadEconomica[]
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  estadoRt              EstadoRegistro               @default(ACTIVO)
+  municipiosSucursal    Sucursal[]                   @relation("MunicipioSucursal")
+  departamentosSucursal Sucursal[]                   @relation("DepartamentoSucursal")
+  credenciales          Credenciales[]               @relation("AmbienteCredenciales")
+  documentosDte         DocumentosDte[]              @relation("AmbienteDocumentosDte")
+  municipiosCliente     Cliente[]                    @relation("MunicipioCliente")
+  departamentosCliente  Cliente[]                    @relation("DepartamentoCliente")
+
+  @@schema("facturalink")
+}
+
+model EmpresaActividadEconomica {
+  empresaId            Int
+  actividadEconomicaId Int
+  empresa              Empresa            @relation(fields: [empresaId], references: [id])
+  actividadEconomica   ActividadEconomica @relation(fields: [actividadEconomicaId], references: [id])
+
+  @@id([empresaId, actividadEconomicaId])
+  @@schema("facturalink")
+}
+
+model ClienteActividadEconomica {
+  clienteId            Int
+  actividadEconomicaId Int
+  cliente              Cliente            @relation(fields: [clienteId], references: [id])
+  actividadEconomica   ActividadEconomica @relation(fields: [actividadEconomicaId], references: [id])
+
+  @@id([clienteId, actividadEconomicaId])
+  @@schema("facturalink")
+}
+
+model CatalogoActividadEconomica {
+  catalogoId           Int
+  actividadEconomicaId Int
+  catalogo             Catalogo           @relation(fields: [catalogoId], references: [id])
+  actividadEconomica   ActividadEconomica @relation(fields: [actividadEconomicaId], references: [id])
+
+  @@id([catalogoId, actividadEconomicaId])
+  @@schema("facturalink")
+}
+
+model Credenciales {
+  id             Int       @id @default(autoincrement())
+  empresaId      Int
+  nombreCliente  String
+  usuario        String
+  clavePublica   String
+  clavePrivada   String
+  password       String
+  ambienteId     Int
+  accessToken    String?
+  uriAuth        String?
+  uriRecepcion   String?
+  uriContigencia String?
+  uriAnulacion   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  ambiente       Catalogo? @relation("AmbienteCredenciales", fields: [ambienteId], references: [id])
+
+  empresa Empresa @relation(fields: [empresaId], references: [id])
+
+  @@schema("facturalink")
+}
+
+enum EstadoTranDTE {
+  PROCESADO
+  FALLIDO
+
+  @@schema("facturalink")
+}
+
+enum EnvioPdfDTE {
+  ENVIADO
+  PENDIENTE // default
+
+  @@schema("facturalink")
+}
+
+model TransaccionesDTE {
+  id               Int      @id @default(autoincrement())
+  version          Int
+  tipoDte          String
+  numeroControl    String   @unique @db.Text
+  codigoGeneracion String   @unique @db.Text
+  tipoModelo       Int
+  tipoOperacion    Int
+  tipoContingencia String?  @db.VarChar(50)
+  motivoContin     String?  @db.VarChar(255)
+  fhProcesamiento  DateTime
+  tipoMoneda       String   @db.VarChar(3)
+  cantIntento      Int      @default(0)
+  createdAt        DateTime @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime @updatedAt @db.Timestamp(6)
+  dteJson          Json
+
+  // Nuevos campos opcionales
+  descripcionMsg String? @db.VarChar(255)
+  selloRecibido  String? @db.VarChar(255)
+
+  // Nuevos enums
+  estadoTranDTE   EstadoTranDTE? @default(PROCESADO)
+  envioPdfDTE     EnvioPdfDTE?   @default(PENDIENTE)
+  DocumentosDte   DocumentosDte? @relation(fields: [documentosDteId], references: [id])
+  documentosDteId Int?
+
+  @@schema("facturalink")
+}
+
+model DocumentosDte {
+  id          Int       @id @default(autoincrement())
+  codigo      String
+  abreviatura String
+  valor       String
+  descripcion String
+  ambienteId  Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  ambiente    Catalogo? @relation("AmbienteDocumentosDte", fields: [ambienteId], references: [id])
+
+  empresas      EmpresaDocumentosDte[]
+  transacciones TransaccionesDTE[]
+
+  @@schema("facturalink")
+}
+
+model EmpresaDocumentosDte {
+  empresaId       Int
+  documentosDteId Int
+  empresa         Empresa       @relation(fields: [empresaId], references: [id])
+  documentosDte   DocumentosDte @relation(fields: [documentosDteId], references: [id])
+
+  @@id([empresaId, documentosDteId])
+  @@schema("facturalink")
+}
+
+model TasasVar {
+  id            Int
+  abreviatura   String         @unique
+  valorNumerico Decimal?       @db.Decimal(5, 4)
+  valorTexto    String?
+  valorJson     Json?
+  descripcion   String?
+  estadoRt      EstadoRegistro @default(ACTIVO)
+
+  @@schema("facturalink")
+}
+
+model CatalogosAgrupados {
+  id                  Int  @id
+  catalogos_agrupados Json
+
+  @@map("catalogos_agrupados")
+  @@schema("facturalink")
+}

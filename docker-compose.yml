@@ -1,0 +1,33 @@
+services:
+
+  backend:
+    build:
+      dockerfile: Dockerfile
+    container_name: backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend-login.rule=Host(`api.facturasv.online`) && Path(`/auth/login`)"
+      - "traefik.http.routers.backend-login.entrypoints=websecure"
+      - "traefik.http.routers.backend-login.tls.certresolver=myresolver"
+
+      - "traefik.http.routers.backend-protected.rule=Host(`api.facturasv.online`) && PathPrefix(`/`)"
+      - "traefik.http.routers.backend-protected.entrypoints=websecure"
+      - "traefik.http.routers.backend-protected.tls.certresolver=myresolver"
+      - "traefik.http.routers.backend-protected.middlewares=jwt-auth@file,inject-token@file"
+
+      - "traefik.http.routers.backend-options.rule=Host(`api.facturasv.online`) && Method(`OPTIONS`)"
+      - "traefik.http.routers.backend-options.entrypoints=websecure"
+    restart: always
+    networks:
+      - internal_network
+    # ports:
+    #   - "3000:3000"
+    env_file:
+      - ./.env
+    # volumes:
+    #   - backend-code:/app
+    #   - backend-node-modules:/app/node_modules
+
+networks:
+  internal_network:
+    driver: bridge
