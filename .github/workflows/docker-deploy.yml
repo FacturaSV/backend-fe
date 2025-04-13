@@ -46,7 +46,7 @@ jobs:
             echo "GH_USER: \$GH_USER"
             echo "REPO_URL: \$REPO_URL"
 
-            PROJECT_DIR="/root/app/facturasvBFE"
+            PROJECT_DIR="/root/app/backend-fe"
             if [ ! -d "\$PROJECT_DIR/.git" ]; then
               echo "Repositorio no válido o inexistente. Clonando de nuevo..."
               rm -rf "\$PROJECT_DIR"
@@ -61,9 +61,10 @@ jobs:
               echo "Error al hacer git pull"
               exit 1
             }
+            cd "/root/app/arch-fe"
 
             docker compose pull
-            docker compose up -d --force-recreate --build
+            docker compose up -d --force-recreate --build backend-fe
 
             echo "===> Despliegue completado"
           EOF
