@@ -1,14 +1,14 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CreateClientDto as CreateDto } from './dto/create-client.dto';
-import { UpdateClientDto as UpdateDto } from './dto/update-client.dto';
-import { Cliente, EstadoRegistro, Prisma } from '@prisma/client';
-import { PaginatedResult } from 'src/common/model/dto/pagination.dto';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { CreateClientDto as CreateDto } from "./dto/create-client.dto";
+import { UpdateClientDto as UpdateDto } from "./dto/update-client.dto";
+import { Cliente, EstadoRegistro, Prisma } from "@prisma/client";
+import { PaginatedResult } from "src/common/model/dto/pagination.dto";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
+import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class ClientService {
-  isDebug = process.env.ESTADORT === 'DEBUG';
+  isDebug = process.env.ESTADORT === "DEBUG";
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -18,10 +18,18 @@ export class ClientService {
    * @returns Cliente creado.
    */
   async create(createDto: CreateDto): Promise<Cliente> {
+    const { ClienteActividadEconomica, empresasRegistradas, ...clienteBase } =
+      createDto;
+
     return await this.prisma.cliente.create({
       data: {
-        ...createDto,
-        estadoRt: createDto.estadoRt ?? EstadoRegistro.ACTIVO, // Estado por defecto
+        ...clienteBase,
+        ClienteActividadEconomica: ClienteActividadEconomica?.length
+          ? { create: ClienteActividadEconomica }
+          : undefined,
+        empresasRegistradas: empresasRegistradas?.length
+          ? { create: empresasRegistradas }
+          : undefined,
       },
     });
   }
@@ -45,7 +53,7 @@ export class ClientService {
     const listaClientes = await this.prisma.cliente.findMany({
       skip,
       take: limit,
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
       where: {
         ...where,
         estadoRt: this.isDebug ? undefined : { not: EstadoRegistro.ELIMINADO },
@@ -87,36 +95,81 @@ export class ClientService {
    */
   async update(id: number, updateDto: UpdateDto): Promise<Cliente> {
     const cliente = await this.findById(id);
-
     if (!cliente) {
-      throw new HttpException('Cliente no encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException("Cliente no encontrado", HttpStatus.NOT_FOUND);
     }
 
-    return await this.prisma.cliente.update({
+    const { ClienteActividadEconomica, empresasRegistradas, ...clienteBase } =
+      updateDto;
+
+    // Actualizamos campos base
+    const updatedCliente = await this.prisma.cliente.update({
       where: { id },
       data: {
-        ...updateDto,
-        updatedAt: new Date(), // Registrar la última actualización
+        ...clienteBase,
+        updatedAt: new Date(),
       },
     });
+
+    // Sincronizamos actividades económicas
+    if (ClienteActividadEconomica) {
+      await this.prisma.clienteActividadEconomica.deleteMany({
+        where: { clienteId: id },
+      });
+
+      if (ClienteActividadEconomica.length > 0) {
+        await this.prisma.cliente.update({
+          where: { id },
+          data: {
+            ClienteActividadEconomica: {
+              create: ClienteActividadEconomica,
+            },
+          },
+        });
+      }
+    }
+
+    // Sincronizamos empresas registradas
+    if (empresasRegistradas) {
+      await this.prisma.empresaClientes.deleteMany({
+        where: { clienteId: id },
+      });
+
+      if (empresasRegistradas.length > 0) {
+        await this.prisma.cliente.update({
+          where: { id },
+          data: {
+            empresasRegistradas: {
+              create: empresasRegistradas,
+            },
+          },
+        });
+      }
+    }
+
+    return updatedCliente;
   }
 
   /**
    * Marca un cliente como inactivo en lugar de eliminarlo.
    */
-  async markAsInactive(id: number): Promise<void> {
+  async markAsInactive(id: number, empresaId: number): Promise<void> {
     const cliente = await this.findById(id);
 
     if (!cliente) {
       throw new HttpException(
-        new ResponseDto(404, 'Cliente no encontrado', 'error', null),
+        new ResponseDto(404, "Cliente no encontrado", "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
 
-    await this.prisma.cliente.update({
-      where: { id },
-      data: { estadoRt: EstadoRegistro.INACTIVO },
+    await this.prisma.empresaClientes.delete({
+      where: {
+        empresaId_clienteId: {
+          clienteId: id,
+          empresaId: empresaId,
+        },
+      },
     });
   }
 
@@ -127,7 +180,7 @@ export class ClientService {
     const cliente = await this.findById(id);
 
     if (!cliente) {
-      throw new HttpException('Cliente no encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException("Cliente no encontrado", HttpStatus.NOT_FOUND);
     }
 
     await this.prisma.cliente.delete({ where: { id } });
@@ -144,13 +197,13 @@ export class ClientService {
 
     // Mapeo de operadores SQL a Prisma
     const operadorPrisma = {
-      '=': 'equals',
-      '!=': 'not',
-      '>': 'gt',
-      '>=': 'gte',
-      '<': 'lt',
-      '<=': 'lte',
-      LIKE: 'contains',
+      "=": "equals",
+      "!=": "not",
+      ">": "gt",
+      ">=": "gte",
+      "<": "lt",
+      "<=": "lte",
+      LIKE: "contains",
     };
 
     // Procesar filtros AND
@@ -162,11 +215,11 @@ export class ClientService {
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
               [operador]: valorConvertido,
-              mode: 'insensitive',
+              mode: "insensitive",
             },
           };
         }
@@ -183,11 +236,11 @@ export class ClientService {
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
               [operador]: valorConvertido,
-              mode: 'insensitive',
+              mode: "insensitive",
             },
           };
         }
@@ -222,13 +275,13 @@ export class ClientService {
     const skip = (page - 1) * limit;
 
     const operadorPrisma: Record<string, string> = {
-      '=': 'equals',
-      '!=': 'not',
-      '>': 'gt',
-      '>=': 'gte',
-      '<': 'lt',
-      '<=': 'lte',
-      LIKE: 'contains',
+      "=": "equals",
+      "!=": "not",
+      ">": "gt",
+      ">=": "gte",
+      "<": "lt",
+      "<=": "lte",
+      LIKE: "contains",
     };
 
     const condicionesCliente: any = {};
@@ -238,9 +291,9 @@ export class ClientService {
     ) => filtros?.filter((f) => operadorPrisma[f.operador]) || [];
 
     const relacionesUnoAUno = new Set([
-      'municipio',
-      'departamento',
-      'actividadEconomica',
+      "municipio",
+      "departamento",
+      "actividadEconomica",
     ]);
 
     const mapFiltro = (f: {
@@ -250,13 +303,13 @@ export class ClientService {
     }) => {
       const operador = operadorPrisma[f.operador];
       const valor =
-        typeof f.valor === 'string'
+        typeof f.valor === "string"
           ? f.valor
           : isNaN(Number(f.valor))
             ? f.valor
             : Number(f.valor);
 
-      const partes = f.columna.split('.');
+      const partes = f.columna.split(".");
 
       if (partes.length > 1) {
         const campoFinal = partes.pop()!;
@@ -265,7 +318,7 @@ export class ClientService {
         let filtro: any = {
           [campoFinal]: {
             [operador]: valor,
-            ...(f.operador === 'LIKE' ? { mode: 'insensitive' } : {}),
+            ...(f.operador === "LIKE" ? { mode: "insensitive" } : {}),
           },
         };
 
@@ -285,7 +338,7 @@ export class ClientService {
       return {
         [f.columna]: {
           [operador]: valor,
-          ...(f.operador === 'LIKE' ? { mode: 'insensitive' } : {}),
+          ...(f.operador === "LIKE" ? { mode: "insensitive" } : {}),
         },
       };
     };
@@ -333,7 +386,7 @@ export class ClientService {
       skip,
       take: limit,
       orderBy: {
-        clienteId: 'desc',
+        clienteId: "desc",
       },
     });
 

@@ -1,14 +1,14 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CreateEmpresaDto as CreateDto } from './dto/create-empresa.dto';
-import { UpdateEmpresaDto as UpdateDto } from './dto/update-empresa.dto';
-import { Empresa, EstadoRegistro, Prisma } from '@prisma/client';
-import { PaginatedResult } from 'src/common/model/dto/pagination.dto';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { CreateEmpresaDto as CreateDto } from "./dto/create-empresa.dto";
+import { UpdateEmpresaDto as UpdateDto } from "./dto/update-empresa.dto";
+import { Empresa, EstadoRegistro, Prisma } from "@prisma/client";
+import { PaginatedResult } from "src/common/model/dto/pagination.dto";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
+import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class EmpresaService {
-  isDebug = process.env.ESTADORT === 'DEBUG';
+  isDebug = process.env.ESTADORT === "DEBUG";
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -42,7 +42,7 @@ export class EmpresaService {
     const empresas = await this.prisma.empresa.findMany({
       skip,
       take: limit,
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
       where: {
         ...where,
         estadoRt: this.isDebug ? undefined : { not: EstadoRegistro.ELIMINADO },
@@ -88,7 +88,7 @@ export class EmpresaService {
     const empresa = await this.findById(id);
 
     if (!empresa) {
-      throw new HttpException('Empresa no encontrada', HttpStatus.NOT_FOUND);
+      throw new HttpException("Empresa no encontrada", HttpStatus.NOT_FOUND);
     }
 
     return await this.prisma.empresa.update({
@@ -108,7 +108,7 @@ export class EmpresaService {
 
     if (!empresa) {
       throw new HttpException(
-        new ResponseDto(404, 'Empresa no encontrada', 'error', null),
+        new ResponseDto(404, "Empresa no encontrada", "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -126,7 +126,7 @@ export class EmpresaService {
     const empresa = await this.findById(id);
 
     if (!empresa) {
-      throw new HttpException('Empresa no encontrada', HttpStatus.NOT_FOUND);
+      throw new HttpException("Empresa no encontrada", HttpStatus.NOT_FOUND);
     }
 
     await this.prisma.empresa.delete({ where: { id } });
@@ -143,13 +143,13 @@ export class EmpresaService {
 
     // Mapeo de operadores SQL a Prisma
     const operadorPrisma = {
-      '=': 'equals',
-      '!=': 'not',
-      '>': 'gt',
-      '>=': 'gte',
-      '<': 'lt',
-      '<=': 'lte',
-      LIKE: 'contains',
+      "=": "equals",
+      "!=": "not",
+      ">": "gt",
+      ">=": "gte",
+      "<": "lt",
+      "<=": "lte",
+      LIKE: "contains",
     };
 
     // Procesar filtros AND
@@ -161,11 +161,11 @@ export class EmpresaService {
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
               [operador]: valorConvertido,
-              mode: 'insensitive',
+              mode: "insensitive",
             },
           };
         }
@@ -182,11 +182,11 @@ export class EmpresaService {
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
               [operador]: valorConvertido,
-              mode: 'insensitive',
+              mode: "insensitive",
             },
           };
         }
@@ -218,10 +218,10 @@ export class EmpresaService {
       if (resultado.length > 0) {
         return resultado[0].empresaInfo;
       }
-      return '';
+      return "";
     } catch (error) {
-      console.error('Error al llamar al procedimiento almacenado:', error);
-      return '';
+      console.error("Error al llamar al procedimiento almacenado:", error);
+      return "";
     }
   }
 }
