@@ -1,14 +1,14 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CreateCategoriaDto as CreateDto } from './dto/create-categoria.dto';
-import { UpdateCategoriaDto as UpdateDto } from './dto/update-categoria.dto';
-import { Categoria, EstadoRegistro, Prisma } from '@prisma/client';
-import { PaginatedResult } from 'src/common/model/dto/pagination.dto';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { CreateCategoriaDto as CreateDto } from "./dto/create-categoria.dto";
+import { UpdateCategoriaDto as UpdateDto } from "./dto/update-categoria.dto";
+import { Categoria, EstadoRegistro, Prisma } from "@prisma/client";
+import { PaginatedResult } from "src/common/model/dto/pagination.dto";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
+import { PrismaService } from "src/prisma/prisma.service";
 
 @Injectable()
 export class CategoriaService {
-  isDebug = process.env.ESTADORT === 'DEBUG';
+  isDebug = process.env.ESTADORT === "DEBUG";
   includeConfig = {
     subcategorias: {
       include: {
@@ -53,7 +53,7 @@ export class CategoriaService {
     const listaRegistro = await this.prisma.categoria.findMany({
       skip,
       take: limit,
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
       include: this.includeConfig,
       where: {
         ...where,
@@ -79,7 +79,7 @@ export class CategoriaService {
     });
 
     if (!registro) {
-      throw new HttpException('Registo no encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException("Registo no encontrado", HttpStatus.NOT_FOUND);
     }
 
     return await this.prisma.categoria.update({
@@ -101,7 +101,7 @@ export class CategoriaService {
 
     if (!sucursal) {
       throw new HttpException(
-        new ResponseDto(404, 'Registo no encontrada', 'error', null),
+        new ResponseDto(404, "Registo no encontrada", "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -111,10 +111,11 @@ export class CategoriaService {
     });
   }
 
-  async findById(id: number) {
+  async findById(id: number, empresaId: number) {
     return await this.prisma.categoria.findUnique({
       where: {
         id,
+        empresaId: empresaId,
         estadoRt: this.isDebug ? undefined : { not: EstadoRegistro.ELIMINADO },
       },
     });
@@ -128,13 +129,13 @@ export class CategoriaService {
 
     // Función para mapear operadores SQL a Prisma
     const operadorPrisma = {
-      '=': 'equals',
-      '!=': 'not',
-      '>': 'gt',
-      '>=': 'gte',
-      '<': 'lt',
-      '<=': 'lte',
-      LIKE: 'contains',
+      "=": "equals",
+      "!=": "not",
+      ">": "gt",
+      ">=": "gte",
+      "<": "lt",
+      "<=": "lte",
+      LIKE: "contains",
     };
 
     // Procesar filtros AND
@@ -147,11 +148,11 @@ export class CategoriaService {
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
               [operador]: valorConvertido,
-              mode: 'insensitive',
+              mode: "insensitive",
             },
           };
         }
@@ -169,11 +170,11 @@ export class CategoriaService {
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
               [operador]: valorConvertido,
-              mode: 'insensitive',
+              mode: "insensitive",
             },
           };
         }
@@ -194,7 +195,6 @@ export class CategoriaService {
     };
 
     return await this.prisma.categoria.findMany({
-      include: this.includeConfig,
       where: lastCondition,
     });
   }

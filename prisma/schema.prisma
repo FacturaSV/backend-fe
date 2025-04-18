@@ -4,9 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider             = "postgresql"
-  url                  = env("DATABASE_URL")
-  schemas              = ["facturalink"]
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  schemas      = ["facturalink"]
   relationMode = "foreignKeys"
 }
 
@@ -120,6 +120,7 @@ model Categoria {
   nombre      String
   descripcion String?
   nivel       Int            @default(1)
+  empresaId   Int?
   estadoRt    EstadoRegistro @default(ACTIVO)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -131,6 +132,8 @@ model Categoria {
   updatedByUser User? @relation("CategoriaUpdatedBy", fields: [updatedBy], references: [id])
   deletedBy     Int?
   deletedByUser User? @relation("CategoriaDeletedBy", fields: [deletedBy], references: [id])
+
+  empresa Empresa? @relation(fields: [empresaId], references: [id])
 
   // Autorreferencia (subcategorías)
   categoriaPadreId Int?
@@ -401,6 +404,7 @@ model Empresa {
   documentosDte         EmpresaDocumentosDte[]
   sucursales            Sucursal[]
   clientesRegistrados   EmpresaClientes[]
+  Categoria             Categoria[]
 
   @@schema("facturalink")
 }
