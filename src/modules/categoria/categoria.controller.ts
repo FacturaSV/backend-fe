@@ -12,15 +12,16 @@ import {
   Delete,
   Param,
   Put,
-} from '@nestjs/common';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
-import { CategoriaService } from './categoria.service';
-import { CreateCategoriaDto as CreateDto } from './dto/create-categoria.dto';
-import { UpdateCategoriaDto as UpdateDto } from './dto/update-categoria.dto';
+} from "@nestjs/common";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
+import { CategoriaService } from "./categoria.service";
+import { CreateCategoriaDto as CreateDto } from "./dto/create-categoria.dto";
+import { UpdateCategoriaDto as UpdateDto } from "./dto/update-categoria.dto";
+import { Prisma } from "@prisma/client";
 
-@Controller('categoria')
+@Controller("categoria")
 export class CategoriaController {
-  private TABLA = 'categoria';
+  private TABLA = "categoria";
   private readonly logger = new Logger(CategoriaController.name);
 
   constructor(private readonly servicio: CategoriaService) {}
@@ -31,25 +32,39 @@ export class CategoriaController {
    */
   @Get()
   async findAll(
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('level') level?: number,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
+    @Query("level") level?: number,
   ): Promise<ResponseDto<any>> {
     // Asigna valores predeterminados en caso de no recibirlos
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
     const currentPage = page ? Number(page) : 1;
     const currentLimit = limit ? Number(limit) : 10;
-    const where: any = {};
-    // In your controller
+    const where: Prisma.CategoriaWhereInput = {
+      AND: [],
+    };
     if (level) {
-      where.nivel = {
-        equals: level,
-      };
+      (where.AND as Prisma.CategoriaWhereInput[]).push({
+        nivel: { equals: level },
+      });
+    }
+    if (tenantCode) {
+      (where.AND as Prisma.CategoriaWhereInput[]).push({
+        empresa: { id: { equals: +tenantCode } },
+      });
     }
 
+    (where.AND as Prisma.CategoriaWhereInput[]).push({
+      estadoRt: { not: "ELIMINADO" },
+    });
+
+    if ((where.AND as Prisma.CategoriaWhereInput[]).length === 0) {
+      delete where.AND;
+    }
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando todas las ${this.TABLA} en el esquema ${currentTenantSchema}`,
     );
@@ -66,7 +81,7 @@ export class CategoriaController {
       return new ResponseDto(
         200,
         `Informacion de ${this.TABLA} procesada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -78,7 +93,7 @@ export class CategoriaController {
         new ResponseDto(
           500,
           `No se pudo procesar la informacion de las ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -94,17 +109,19 @@ export class CategoriaController {
   @HttpCode(201)
   async create(
     @Body() createSucursalDto: CreateDto,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: number,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Creando ${this.TABLA} en el esquema ${currentTenantSchema}`,
     );
 
     try {
+      createSucursalDto.empresaId = tenantCode ? +tenantCode : 1;
       const result = await this.servicio.create(createSucursalDto);
       this.logger.log(
         `Transaction ID: ${currentTransactionId} - ${this.TABLA} creada correctamente en el esquema ${currentTenantSchema}`,
@@ -112,7 +129,7 @@ export class CategoriaController {
       return new ResponseDto(
         201,
         `${this.TABLA} creada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -124,7 +141,7 @@ export class CategoriaController {
         new ResponseDto(
           500,
           `No se pudo crear la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -135,15 +152,15 @@ export class CategoriaController {
   /**
    * Endpoint para eliminar una registro por su ID.
    */
-  @Delete(':id')
+  @Delete(":id")
   @HttpCode(200)
   async deleteSucursal(
-    @Param('id') id: string,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Param("id") id: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Eliminando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -156,8 +173,8 @@ export class CategoriaController {
       );
       return new ResponseDto(
         200,
-        'Registro eliminado correctamente',
-        'success',
+        "Registro eliminado correctamente",
+        "success",
         id,
       );
     } catch (error) {
@@ -169,7 +186,7 @@ export class CategoriaController {
         new ResponseDto(
           500,
           `No se pudo eliminar la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -180,22 +197,27 @@ export class CategoriaController {
   /**
    * Endpoint para actualizar una registro por su ID.
    */
-  @Put(':id')
+  @Put(":id")
   @HttpCode(200)
   async updateSucursal(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateSucursalDto: UpdateDto,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: number,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Actualizando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
     );
 
     try {
+      if (tenantCode) {
+        updateSucursalDto.empresaId = Number(tenantCode);
+      }
+
       const updatedSucursal = await this.servicio.update(
         +id,
         updateSucursalDto,
@@ -208,7 +230,7 @@ export class CategoriaController {
       return new ResponseDto(
         200,
         `${this.TABLA} actualizada correctamente`,
-        'success',
+        "success",
         updatedSucursal,
       );
     } catch (error) {
@@ -221,7 +243,7 @@ export class CategoriaController {
         new ResponseDto(
           500,
           `No se pudo actualizar la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -233,14 +255,15 @@ export class CategoriaController {
    * Endpoint para obtener una registro por su ID.
    * Se espera que el front envíe los headers 'x-transaction-id' y 'x-tenant-schema'.
    */
-  @Get(':id')
+  @Get(":id")
   async findById(
-    @Param('id') id: string,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Param("id") id: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: number,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -248,7 +271,19 @@ export class CategoriaController {
 
     let registro;
     try {
-      registro = await this.servicio.findById(+id);
+      if (tenantCode) {
+        registro = await this.servicio.findById(+id, +tenantCode);
+      } else {
+        throw new HttpException(
+          new ResponseDto(
+            400,
+            `No se pudo obtener la ${this.TABLA}`,
+            "error",
+            null,
+          ),
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     } catch (error) {
       this.logger.error(
         `Transaction ID: ${currentTransactionId} - Error inesperado al consultar ${this.TABLA} con ID ${id}`,
@@ -258,7 +293,7 @@ export class CategoriaController {
         new ResponseDto(
           500,
           `No se pudo obtener la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -272,7 +307,7 @@ export class CategoriaController {
       );
 
       throw new HttpException(
-        new ResponseDto(404, `${this.TABLA} no encontrada`, 'error', null),
+        new ResponseDto(404, `${this.TABLA} no encontrada`, "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -284,23 +319,23 @@ export class CategoriaController {
     return new ResponseDto(
       200,
       `${this.TABLA} encontrada`,
-      'success',
+      "success",
       registro,
     );
   }
 
-  @Post('buscar')
+  @Post("buscar")
   async buscarSucursales(
     @Body()
     filtros: {
       AND?: { columna: string; operador: string; valor: string }[];
       OR?: { columna: string; operador: string; valor: string }[];
     },
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ) {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando ${this.TABLA} con filtros en el esquema ${currentTenantSchema}`,
@@ -310,7 +345,7 @@ export class CategoriaController {
       this.logger.log(
         `Transaction ID: ${currentTransactionId} - Búsqueda completada en el esquema ${currentTenantSchema} con ${result.length} resultados`,
       );
-      return new ResponseDto(200, 'Búsqueda completada', 'success', result);
+      return new ResponseDto(200, "Búsqueda completada", "success", result);
     } catch (error) {
       this.logger.error(
         `Transaction ID: ${currentTransactionId} - Error al buscar ${this.TABLA} con filtros en el esquema ${currentTenantSchema}`,
@@ -320,7 +355,7 @@ export class CategoriaController {
         new ResponseDto(
           500,
           `No se pudo completar la búsqueda de ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
