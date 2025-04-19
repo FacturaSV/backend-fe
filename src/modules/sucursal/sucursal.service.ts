@@ -1,14 +1,14 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { CreateSucursalDto as CreateDto } from './dto/create-sucursal.dto';
-import { UpdateSucursalDto as UpdateDto } from './dto/update-sucursal.dto';
-import { PrismaService } from 'src/prisma/prisma.service';
-import { EstadoRegistro, Sucursal } from '@prisma/client';
-import { PaginatedResult } from 'src/common/model/dto/pagination.dto';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { CreateSucursalDto as CreateDto } from "./dto/create-sucursal.dto";
+import { UpdateSucursalDto as UpdateDto } from "./dto/update-sucursal.dto";
+import { PrismaService } from "src/prisma/prisma.service";
+import { EstadoRegistro, Prisma, Sucursal } from "@prisma/client";
+import { PaginatedResult } from "src/common/model/dto/pagination.dto";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
 
 @Injectable()
 export class SucursalService {
-  isDebug = process.env.ESTADORT === 'DEBUG';
+  isDebug = process.env.ESTADORT === "DEBUG";
   constructor(private readonly prisma: PrismaService) {}
   /**
    * Crea una nueva registro en la base de datos.
@@ -24,19 +24,28 @@ export class SucursalService {
   /**
    * Listar todas los registro con paginación
    */
-  async findAll(page = 1, limit = 10): Promise<PaginatedResult<Sucursal>> {
+  async findAll(
+    page = 1,
+    limit = 10,
+    where?: Prisma.SucursalWhereInput,
+  ): Promise<PaginatedResult<Sucursal>> {
     const skip = (page - 1) * limit;
-    const total = await this.prisma.sucursal.count();
+    const total = await this.prisma.sucursal.count({
+      where: {
+        ...where,
+        estadoRt: this.isDebug ? undefined : { not: EstadoRegistro.ELIMINADO },
+      },
+    });
 
-    // Verificamos el entorno: si es DEBUG, incluimos todos; si no, filtramos
-    const isDebug = process.env.ESTADORT === 'DEBUG';
+    const isDebug = process.env.ESTADORT === "DEBUG";
     const listaRegistro = await this.prisma.sucursal.findMany({
       where: {
+        ...where,
         estadoRt: isDebug ? undefined : { not: EstadoRegistro.ELIMINADO },
       },
       skip,
       take: limit,
-      orderBy: { id: 'desc' },
+      orderBy: { id: "desc" },
     });
 
     return {
@@ -57,7 +66,7 @@ export class SucursalService {
     });
 
     if (!registro) {
-      throw new HttpException('Registo no encontrado', HttpStatus.NOT_FOUND);
+      throw new HttpException("Registo no encontrado", HttpStatus.NOT_FOUND);
     }
 
     return await this.prisma.sucursal.update({
@@ -79,7 +88,7 @@ export class SucursalService {
 
     if (!sucursal) {
       throw new HttpException(
-        new ResponseDto(404, 'Registo no encontrada', 'error', null),
+        new ResponseDto(404, "Registo no encontrada", "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -98,79 +107,89 @@ export class SucursalService {
     });
   }
 
-  async buscarDinamico(filtros: {
-    AND?: { columna: string; operador: string; valor: any }[];
-    OR?: { columna: string; operador: string; valor: any }[];
-  }) {
+  async buscarDinamico(
+    filtros: {
+      AND?: { columna: string; operador: string; valor: any }[];
+      OR?: { columna: string; operador: string; valor: any }[];
+    },
+    page = 1,
+    limit = 10,
+    where?: Prisma.SucursalWhereInput,
+  ) {
     const condiciones: any = {};
-
-    // Función para mapear operadores SQL a Prisma
     const operadorPrisma = {
-      '=': 'equals',
-      '!=': 'not',
-      '>': 'gt',
-      '>=': 'gte',
-      '<': 'lt',
-      '<=': 'lte',
-      LIKE: 'contains',
+      "=": "equals",
+      "!=": "not",
+      ">": "gt",
+      ">=": "gte",
+      "<": "lt",
+      "<=": "lte",
+      LIKE: "contains",
     };
 
     // Procesar filtros AND
-    if (filtros.AND && filtros.AND.length > 0) {
+    if (filtros.AND?.length) {
       condiciones.AND = filtros.AND.map((filtro) => {
         const operador = operadorPrisma[filtro.operador];
-
-        // Convertimos los valores a números si es posible
-        const valorConvertido = isNaN(Number(filtro.valor))
+        const valor = isNaN(Number(filtro.valor))
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
-              [operador]: valorConvertido,
-              mode: 'insensitive',
+              [operador]: valor,
+              mode: "insensitive",
             },
           };
         }
-        return { [filtro.columna]: { [operador]: valorConvertido } };
+
+        return { [filtro.columna]: { [operador]: valor } };
       });
     }
 
     // Procesar filtros OR
-    if (filtros.OR && filtros.OR.length > 0) {
+    if (filtros.OR?.length) {
       condiciones.OR = filtros.OR.map((filtro) => {
         const operador = operadorPrisma[filtro.operador];
-
-        // Convertimos los valores a números si es posible
-        const valorConvertido = isNaN(Number(filtro.valor))
+        const valor = isNaN(Number(filtro.valor))
           ? filtro.valor
           : Number(filtro.valor);
 
-        if (operador === 'contains') {
+        if (operador === "contains") {
           return {
             [filtro.columna]: {
-              [operador]: valorConvertido,
-              mode: 'insensitive',
+              [operador]: valor,
+              mode: "insensitive",
             },
           };
         }
-        return { [filtro.columna]: { [operador]: valorConvertido } };
+
+        return { [filtro.columna]: { [operador]: valor } };
       });
     }
 
-    // Si no hay filtros válidos, devolver todos los registros sin filtro
-    if (!condiciones.AND && !condiciones.OR) {
-      return await this.prisma.sucursal.findMany();
-    }
-
-    const lastCondition = {
+    const finalWhere: Prisma.SucursalWhereInput = {
+      ...where,
       ...condiciones,
-      estadoRt: this.isDebug ? undefined : { not: EstadoRegistro.ELIMINADO },
+      estadoRt: this.isDebug ? undefined : { not: "ELIMINADO" },
     };
 
-    return await this.prisma.sucursal.findMany({
-      where: lastCondition,
+    const total = await this.prisma.sucursal.count({ where: finalWhere });
+
+    const data = await this.prisma.sucursal.findMany({
+      where: finalWhere,
+      skip: (page - 1) * limit,
+      take: limit,
+      orderBy: { createdAt: "desc" }, // Opcional
     });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }
