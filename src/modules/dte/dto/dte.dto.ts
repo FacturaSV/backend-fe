@@ -141,3 +141,5 @@ export interface EnvioDteRequest {
   documento: string; // JWT del documento firmado
   codigoGeneracion: string;
 }
+
+export type DteCreditoFiscalPayload = DtePayload;

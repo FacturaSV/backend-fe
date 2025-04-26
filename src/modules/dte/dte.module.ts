@@ -4,6 +4,7 @@ import { DteService } from './dte.service';
 import { DteFeController } from './dte.fe.controller';
 import { DteFeMapper } from './dte.fe.mapper';
 import { TrxDteService } from './trx-dte.service';
+import { DteCcfController } from './dte.ccf.controller';
 
 @Module({
   imports: [
@@ -12,7 +13,7 @@ import { TrxDteService } from './trx-dte.service';
       isGlobal: false,
     }),
   ],
-  controllers: [DteFeController],
+  controllers: [DteFeController, DteCcfController],
   providers: [DteService, TrxDteService, DteFeMapper],
 })
 export class DteModule {}
