@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import {
   Controller,
   Get,
@@ -12,15 +13,15 @@ import {
   Delete,
   Param,
   Put,
-} from '@nestjs/common';
-import { SucursalService } from './sucursal.service';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
-import { CreateSucursalDto as CreateDto } from './dto/create-sucursal.dto';
-import { UpdateSucursalDto as UpdateDto } from './dto/update-sucursal.dto';
+} from "@nestjs/common";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
+import { CreateSucursalDto as CreateDto } from "./dto/create-sucursal.dto";
+import { UpdateSucursalDto as UpdateDto } from "./dto/update-sucursal.dto";
+import { SucursalService } from "./sucursal.service";
 
-@Controller('sucursal')
+@Controller("sucursal")
 export class SucursalController {
-  private TABLA = 'sucursal';
+  private TABLA = "sucursal";
   private readonly logger = new Logger(SucursalController.name);
 
   constructor(private readonly servicio: SucursalService) {}
@@ -31,16 +32,25 @@ export class SucursalController {
    */
   @Get()
   async findAll(
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
   ): Promise<ResponseDto<any>> {
     // Asigna valores predeterminados en caso de no recibirlos
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
     const currentPage = page ? Number(page) : 1;
     const currentLimit = limit ? Number(limit) : 10;
+    const where: Prisma.SucursalWhereInput = {
+      AND: [],
+    };
+    if (tenantCode) {
+      (where.AND as Prisma.SucursalWhereInput[]).push({
+        empresa: { id: { equals: +tenantCode } },
+      });
+    }
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando todas las ${this.TABLA} en el esquema ${currentTenantSchema}`,
@@ -54,7 +64,7 @@ export class SucursalController {
       return new ResponseDto(
         200,
         `Informacion de ${this.TABLA} procesada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -66,7 +76,7 @@ export class SucursalController {
         new ResponseDto(
           500,
           `No se pudo procesar la informacion de las ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -82,15 +92,19 @@ export class SucursalController {
   @HttpCode(201)
   async create(
     @Body() createSucursalDto: CreateDto,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Creando ${this.TABLA} en el esquema ${currentTenantSchema}`,
     );
+    if (tenantCode) {
+      createSucursalDto.empresaId = +tenantCode;
+    }
 
     try {
       const result = await this.servicio.create(createSucursalDto);
@@ -100,7 +114,7 @@ export class SucursalController {
       return new ResponseDto(
         201,
         `${this.TABLA} creada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -112,7 +126,7 @@ export class SucursalController {
         new ResponseDto(
           500,
           `No se pudo crear la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -123,15 +137,15 @@ export class SucursalController {
   /**
    * Endpoint para eliminar una registro por su ID.
    */
-  @Delete(':id')
+  @Delete(":id")
   @HttpCode(200)
   async deleteSucursal(
-    @Param('id') id: string,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Param("id") id: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Eliminando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -144,8 +158,8 @@ export class SucursalController {
       );
       return new ResponseDto(
         200,
-        'Registro eliminado correctamente',
-        'success',
+        "Registro eliminado correctamente",
+        "success",
         id,
       );
     } catch (error) {
@@ -157,7 +171,7 @@ export class SucursalController {
         new ResponseDto(
           500,
           `No se pudo eliminar la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -168,20 +182,24 @@ export class SucursalController {
   /**
    * Endpoint para actualizar una registro por su ID.
    */
-  @Put(':id')
+  @Put(":id")
   @HttpCode(200)
   async updateSucursal(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateSucursalDto: UpdateDto,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Actualizando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
     );
+    if (tenantCode) {
+      updateSucursalDto.empresaId = +tenantCode;
+    }
 
     try {
       const updatedSucursal = await this.servicio.update(
@@ -196,7 +214,7 @@ export class SucursalController {
       return new ResponseDto(
         200,
         `${this.TABLA} actualizada correctamente`,
-        'success',
+        "success",
         updatedSucursal,
       );
     } catch (error) {
@@ -209,7 +227,7 @@ export class SucursalController {
         new ResponseDto(
           500,
           `No se pudo actualizar la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -221,14 +239,14 @@ export class SucursalController {
    * Endpoint para obtener una registro por su ID.
    * Se espera que el front envíe los headers 'x-transaction-id' y 'x-tenant-schema'.
    */
-  @Get(':id')
+  @Get(":id")
   async findById(
-    @Param('id') id: string,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Param("id") id: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -246,7 +264,7 @@ export class SucursalController {
         new ResponseDto(
           500,
           `No se pudo obtener la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -260,7 +278,7 @@ export class SucursalController {
       );
 
       throw new HttpException(
-        new ResponseDto(404, `${this.TABLA} no encontrada`, 'error', null),
+        new ResponseDto(404, `${this.TABLA} no encontrada`, "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -272,43 +290,67 @@ export class SucursalController {
     return new ResponseDto(
       200,
       `${this.TABLA} encontrada`,
-      'success',
+      "success",
       registro,
     );
   }
 
-  @Post('buscar')
+  @Post("buscar")
   async buscarSucursales(
     @Body()
     filtros: {
       AND?: { columna: string; operador: string; valor: string }[];
       OR?: { columna: string; operador: string; valor: string }[];
     },
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Headers("x-tenant-code") tenantCode?: string,
   ) {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
+    const currentPage = page ? Number(page) : 1;
+    const currentLimit = limit ? Number(limit) : 10;
+
+    const where: Prisma.SucursalWhereInput = {
+      AND: [],
+    };
+
+    if (tenantCode) {
+      (where.AND as Prisma.SucursalWhereInput[]).push({
+        empresaId: { equals: +tenantCode },
+      });
+    }
 
     this.logger.log(
-      `Transaction ID: ${currentTransactionId} - Consultando ${this.TABLA} con filtros en el esquema ${currentTenantSchema}`,
+      `Transaction ID: ${currentTransactionId} - Consultando ${this.TABLA} con filtros en el esquema ${currentTenantSchema}, página ${currentPage}, límite ${currentLimit}`,
     );
+
     try {
-      const result = await this.servicio.buscarDinamico(filtros);
-      this.logger.log(
-        `Transaction ID: ${currentTransactionId} - Búsqueda completada en el esquema ${currentTenantSchema} con ${result.length} resultados`,
+      const result = await this.servicio.buscarDinamico(
+        filtros,
+        currentPage,
+        currentLimit,
+        where,
       );
-      return new ResponseDto(200, 'Búsqueda completada', 'success', result);
+
+      this.logger.log(
+        `Transaction ID: ${currentTransactionId} - Búsqueda completada en el esquema ${currentTenantSchema} con ${result.total} resultados`,
+      );
+
+      return new ResponseDto(200, "Búsqueda completada", "success", result);
     } catch (error) {
       this.logger.error(
         `Transaction ID: ${currentTransactionId} - Error al buscar ${this.TABLA} con filtros en el esquema ${currentTenantSchema}`,
         error instanceof Error ? error.stack : error,
       );
+
       throw new HttpException(
         new ResponseDto(
           500,
           `No se pudo completar la búsqueda de ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,

@@ -13,28 +13,28 @@ import {
   Param,
   Put,
   Patch,
-} from '@nestjs/common';
-import { ResponseDto } from 'src/common/model/dto/response.body.dto';
-import { EmpresaService } from './empresa.service';
-import { CreateEmpresaDto as CreateDto } from './dto/create-empresa.dto';
-import { UpdateEmpresaDto as UpdateDto } from './dto/update-empresa.dto';
+} from "@nestjs/common";
+import { ResponseDto } from "src/common/model/dto/response.body.dto";
+import { EmpresaService } from "./empresa.service";
+import { CreateEmpresaDto as CreateDto } from "./dto/create-empresa.dto";
+import { UpdateEmpresaDto as UpdateDto } from "./dto/update-empresa.dto";
 
-@Controller('empresa')
+@Controller("empresa")
 export class EmpresaController {
-  private TABLA = 'empresa';
+  private TABLA = "empresa";
   private readonly logger = new Logger(EmpresaController.name);
 
   constructor(private readonly servicio: EmpresaService) {}
 
   @Get()
   async findAll(
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
     const currentPage = page ? Number(page) : 1;
     const currentLimit = limit ? Number(limit) : 10;
 
@@ -50,7 +50,7 @@ export class EmpresaController {
       return new ResponseDto(
         200,
         `Información de ${this.TABLA} procesada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -62,7 +62,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo procesar la información de las ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -70,13 +70,13 @@ export class EmpresaController {
     }
   }
 
-  @Get('/token')
+  @Get("/token")
   async empresaToken(
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando todas las ${this.TABLA} en el esquema ${currentTenantSchema}`,
@@ -91,7 +91,7 @@ export class EmpresaController {
       return new ResponseDto(
         200,
         `Información de ${this.TABLA} procesada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -103,7 +103,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo procesar la información de las ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -118,11 +118,11 @@ export class EmpresaController {
   @HttpCode(201)
   async create(
     @Body() createEmpresaDto: CreateDto,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Creando ${this.TABLA} en el esquema ${currentTenantSchema}`,
@@ -136,7 +136,7 @@ export class EmpresaController {
       return new ResponseDto(
         201,
         `${this.TABLA} creada correctamente`,
-        'success',
+        "success",
         result,
       );
     } catch (error) {
@@ -148,7 +148,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo crear la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -159,15 +159,15 @@ export class EmpresaController {
   /**
    * Endpoint para eliminar una empresa por su ID.
    */
-  @Delete(':id')
+  @Delete(":id")
   @HttpCode(200)
   async deleteEmpresa(
-    @Param('id') id: string,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Param("id") id: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Eliminando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -180,8 +180,8 @@ export class EmpresaController {
       );
       return new ResponseDto(
         200,
-        'Registro eliminado correctamente',
-        'success',
+        "Registro eliminado correctamente",
+        "success",
         id,
       );
     } catch (error) {
@@ -193,7 +193,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo eliminar la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -204,16 +204,16 @@ export class EmpresaController {
   /**
    * Endpoint para actualizar una empresa por su ID.
    */
-  @Put(':id')
+  @Put(":id")
   @HttpCode(200)
   async updateEmpresa(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateEmpresaDto: UpdateDto,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Actualizando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -229,7 +229,7 @@ export class EmpresaController {
       return new ResponseDto(
         200,
         `${this.TABLA} actualizada correctamente`,
-        'success',
+        "success",
         updatedEmpresa,
       );
     } catch (error) {
@@ -242,7 +242,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo actualizar la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -253,14 +253,14 @@ export class EmpresaController {
   /**
    * Endpoint para obtener una empresa por su ID.
    */
-  @Get(':id')
+  @Get(":id")
   async findById(
-    @Param('id') id: string,
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Param("id") id: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
 
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando ${this.TABLA} con ID ${id} en el esquema ${currentTenantSchema}`,
@@ -278,7 +278,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo obtener la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -287,7 +287,7 @@ export class EmpresaController {
 
     if (!registro) {
       throw new HttpException(
-        new ResponseDto(404, `${this.TABLA} no encontrada`, 'error', null),
+        new ResponseDto(404, `${this.TABLA} no encontrada`, "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -298,7 +298,7 @@ export class EmpresaController {
     return new ResponseDto(
       200,
       `${this.TABLA} encontrada`,
-      'success',
+      "success",
       registro,
     );
   }
@@ -306,14 +306,14 @@ export class EmpresaController {
   /**
    * Endpoint para obtener una empresa por su ID.
    */
-  @Patch('')
+  @Patch("")
   async findByGroup(
-    @Headers('x-transaction-id') transactionId?: string,
-    @Headers('x-tenant-schema') tenantSchema?: string,
+    @Headers("x-transaction-id") transactionId?: string,
+    @Headers("x-tenant-schema") tenantSchema?: string,
   ): Promise<ResponseDto<any>> {
-    const currentTransactionId = transactionId || 'NO_TRANSACTION_ID';
-    const currentTenantSchema = tenantSchema || 'default_schema';
-    const group = tenantSchema || 'default_schema';
+    const currentTransactionId = transactionId || "NO_TRANSACTION_ID";
+    const currentTenantSchema = tenantSchema || "default_schema";
+    const group = tenantSchema || "default_schema";
     this.logger.log(
       `Transaction ID: ${currentTransactionId} - Consultando group ${this.TABLA} con group ${group} en el esquema ${currentTenantSchema}`,
     );
@@ -330,7 +330,7 @@ export class EmpresaController {
         new ResponseDto(
           500,
           `No se pudo obtener la ${this.TABLA}`,
-          'error',
+          "error",
           null,
         ),
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -339,7 +339,7 @@ export class EmpresaController {
 
     if (!registro) {
       throw new HttpException(
-        new ResponseDto(404, `${this.TABLA} no encontrada`, 'error', null),
+        new ResponseDto(404, `${this.TABLA} no encontrada`, "error", null),
         HttpStatus.NOT_FOUND,
       );
     }
@@ -350,7 +350,7 @@ export class EmpresaController {
     return new ResponseDto(
       200,
       `${this.TABLA} encontrada`,
-      'success',
+      "success",
       registro,
     );
   }
