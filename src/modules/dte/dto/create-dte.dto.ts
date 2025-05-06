@@ -92,3 +92,17 @@ export interface DireccionInfo {
   municipio: string;
   complemento: string;
 }
+
+export interface CreateDteCreditoFiscalDto {
+  sucursarId: number;
+  codigoDTE: string; // Debe ser "03" para CCF
+  codigoActEconomicaR: string; // Actividad económica del receptor
+  codigoActEconomicaE: string; // Actividad económica del emisor
+  receptorId: number;
+  isClient: boolean;
+  isBusiness: boolean;
+  items: CuerpoDocumento[];
+  pagos: Pago[];
+  descuentoGeneral: number;
+  saldoFavor: number;
+}

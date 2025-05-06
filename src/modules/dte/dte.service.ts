@@ -21,15 +21,34 @@ import {
   EnvioDteRequest,
 } from './dto/dte.dto';
 import axios, { AxiosError } from 'axios';
+import { AnularDteDto, IEmpresa } from './dto/anular-dte.dto';
 
 @Injectable()
 export class DteService {
   private readonly logger = new Logger(DteService.name);
 
+  private readonly codigoToAbreviatura: Record<string, string> = {
+    '01': 'FE',
+    '03': 'CCFE',
+    '04': 'NRE',
+    '05': 'NCE',
+    '06': 'NDE',
+    '07': 'CRE',
+    '08': 'CLE',
+    '09': 'DCLE',
+    '11': 'FEXE',
+    '14': 'FSEE',
+    '15': 'CDE',
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
+
+  private traducirCodigoADocumento(codigo: string): string {
+    return this.codigoToAbreviatura[codigo] ?? codigo;
+  }
 
   async firmarDocumento(
     dtePayload: FirmarDocumentoRequest,
@@ -52,6 +71,7 @@ export class DteService {
     }
   }
 
+  //hacer uno nuevo pero para anular esto por lo de ENVIODteRequest
   async enviarDocumentoAHacienda(
     uriTrasmision: string,
     payload: EnvioDteRequest,
@@ -91,6 +111,7 @@ export class DteService {
       };
     }
   }
+  
 
   async getTasaIVA(): Promise<number> {
     const cacheKey = 'TASA_IVA';
@@ -170,7 +191,6 @@ export class DteService {
       >`
         SELECT facturalink.fn_get_info_sucursal_documento(${sucursalId}::int, ${codigoDTE}::text) AS data;
     `;
-
       if (result.length > 0 && result[0].data) {
         return result[0].data;
       }
@@ -206,6 +226,45 @@ export class DteService {
   calcularIVAItem(item: CuerpoDocumento, tasaIVA: number): number {
     const base = +(item.ventaGravada / (1 + tasaIVA)).toFixed(8);
     return +(item.ventaGravada - base).toFixed(8);
+  }
+
+  async anularDocumentoDte(request: AnularDteDto, token: string): Promise<any> {
+    const url = 'https://apitest.dtes.mh.gob.sv/fesv/anulardte'; // Endpoint oficial de anulación
+  
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: token,
+    };
+  
+    try {
+      const response = await axios.post(url, request, { headers });
+  
+      return {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+      };
+    } catch (error) {
+      const axiosError = error as AxiosError;
+  
+      const status = axiosError.response?.status;
+      const statusText = axiosError.response?.statusText;
+      const data = axiosError.response?.data;
+  
+      this.logger.error(
+        `Error al anular DTE. Status: ${status} ${statusText}`,
+      );
+      if (data) {
+        this.logger.error(`Respuesta de error: ${JSON.stringify(data)}`);
+      }
+  
+      return {
+        error: true,
+        status,
+        statusText,
+        data,
+      };
+    }
   }
 
   async validarItem(item: CuerpoDocumento): Promise<CuerpoDocumento> {
@@ -480,4 +539,56 @@ export class DteService {
 
     return payload;
   }
+
+  async construirAnularDteRequest(requestFront: AnularDteDto, empresaInfo: IEmpresa): Promise<AnularDteDto> {
+    const { motivo, documento } = requestFront.dteJson;
+  
+    const abreviatura = this.traducirCodigoADocumento(empresaInfo.codigoDTE);
+    const emisorInfo = await this.informactionDte(empresaInfo.sucursarId, abreviatura);
+    this.logger.log('Imprimiendo empresa' + JSON.stringify(emisorInfo?.empresa.nombre, null, 2));
+    if (!emisorInfo) {
+      throw new BadRequestException('No se encontró la información del emisor para anulación');
+    }
+  
+    const codigoGeneracionNuevo = await this.codigoGeneracion('ANULARDTE', 'UUID');    // puedes usar uuidv4() o lo que ya tengas
+  
+    const fechaHoy = new Date();
+    const formatoFecha = fechaHoy.toISOString().split('T')[0];
+    const formatoHora = fechaHoy.toTimeString().split(' ')[0];
+  
+    const anularRequest: AnularDteDto = {
+      nit: emisorInfo.empresa.nit,
+      activo: true,
+      passwordPri: emisorInfo.credencial.clavePrivada,
+      dteJson: {
+        identificacion: {
+          version: 2,
+          ambiente: emisorInfo.documento.ambiente.codigo,
+          codigoGeneracion: codigoGeneracionNuevo,
+          fecAnula: formatoFecha,
+          horAnula: formatoHora,
+        },
+        emisor: {
+          nit: emisorInfo.empresa.nit,
+          nombre: emisorInfo.empresa.nombre,
+          tipoEstablecimiento: emisorInfo.sucursal.tipoEstablecimiento,
+          nomEstablecimiento: emisorInfo.sucursal.nombreComercial,
+          telefono: emisorInfo.sucursal.telefono,
+          correo: emisorInfo.sucursal.correo,
+          codEstableMH: emisorInfo.sucursal.codEstableMH,
+          codPuntoVentaMH: emisorInfo.sucursal.codPuntoVentaMH,
+          codPuntoVenta: emisorInfo.sucursal.codPuntoVenta,
+        },
+        documento: {
+          ...documento, // Datos que ya vienen del frontend
+        },
+        motivo: motivo, // El motivo completo que viene del frontend
+      }
+    };
+  
+    return anularRequest;
+  }
+  
+
+
 }

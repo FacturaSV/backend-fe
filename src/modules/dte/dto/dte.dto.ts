@@ -137,7 +137,9 @@ export interface EnvioDteRequest {
   ambiente: string;
   idEnvio: number;
   version: number;
-  tipoDte: string;
+  tipoDte?: string;
   documento: string; // JWT del documento firmado
-  codigoGeneracion: string;
+  codigoGeneracion?: string;
 }
+
+export type DteCreditoFiscalPayload = DtePayload;
