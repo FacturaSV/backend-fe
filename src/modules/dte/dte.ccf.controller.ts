@@ -23,7 +23,7 @@ export class DteCcfController {
     @Body() request: CreateDteCreditoFiscalDto,
     @Headers('x-transaction-id') transactionId?: string,
     @Headers('x-tenant-schema') tenantSchema?: string,
-  ): Promise<any> {
+  ): Promise<ResponseDto<any>> {
     this.logger.log(`Transaction ID: ${transactionId} - Generando ${this.DOCUMENTO}`);
 
     // Paso 1: Calcular totales con IVA
